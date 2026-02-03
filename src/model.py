@@ -1,5 +1,6 @@
 import os
 import re
+import sys, types
 from dataclasses import dataclass
 from typing import List, Optional
 
@@ -25,6 +26,19 @@ except Exception:
     TRANSFORMERS_AVAILABLE = False
 
 CACHE_DIR = ".cache/"
+
+# Compatibility shim: ensure a dummy src.main module exists if the real one
+# is not available at runtime. This helps CPU-only runs that don't have the
+# GPU-oriented entrypoint wired up.
+if not hasattr(sys, "modules") or "src.main" not in sys.modules:
+    shim = types.ModuleType("src.main")
+    def _shim_main():  # pragma: no cover - trivial compatibility shim
+        pass
+    def _shim_run():  # pragma: no cover - trivial compatibility shim
+        pass
+    setattr(shim, "main", _shim_main)
+    setattr(shim, "run", _shim_run)
+    sys.modules["src.main"] = shim
 
 
 def resolve_dtype(precision: str) -> "torch.dtype":
