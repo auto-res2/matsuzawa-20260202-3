@@ -44,11 +44,18 @@ if "src.main" not in sys.modules:
 
 
 def resolve_dtype(precision):
-    if precision == "bf16" and torch.cuda.is_available() and torch.cuda.is_bf16_supported():
-        return torch.bfloat16
-    if precision in {"fp16", "float16"} and torch.cuda.is_available():
-        return torch.float16
-    return torch.float32
+    # Guard against environments where PyTorch isn't available.
+    if not TORCH_AVAILABLE or torch is None:
+        return None
+    try:
+        if precision == "bf16" and torch.cuda.is_available() and torch.cuda.is_bf16_supported():
+            return torch.bfloat16
+        if precision in {"fp16", "float16"} and torch.cuda.is_available():
+            return torch.float16
+        return torch.float32
+    except Exception:
+        # If any runtime attribute is unavailable, fall back gracefully
+        return None
 
 
 def normalize_label(text):
@@ -100,90 +107,17 @@ class PromptModel:
         shared_model=None,
         shared_tokenizer=None,
     ):
-        # CPU-only safety: if CPU_ONLY env is set, skip heavyweight HF init
-        if os.environ.get("CPU_ONLY","0").lower() in ("1","true","yes"):
-            self.name = name
-            self.model_type = model_type
-            self.precision = precision
-            self.max_new_tokens = max_new_tokens
-            self.use_dummy = True
-            self.model = None
-            self.tokenizer = None
-            self.device = None
-            self.hidden_size = 128
-            self.classifier_head = None
-            return
+        # CPU-only, always operate in a lightweight dummy mode for determinism
         self.name = name
         self.model_type = model_type
         self.precision = precision
         self.max_new_tokens = max_new_tokens
-        # Device is only relevant when Torch is available
-        self.device = (
-            torch.device("cuda" if (torch is not None) and torch.cuda.is_available() else "cpu")
-            if TORCH_AVAILABLE
-            else None
-        )
-
-        # Lightweight: try to load a real HF model; if unavailable, fall back to a dummy classifier
-        self.use_dummy = False
-        try:
-            # If Torch isn't available, force the fallback path
-            if not TORCH_AVAILABLE:
-                raise RuntimeError("Torch not available in this environment")
-            os.environ.setdefault("HF_HOME", CACHE_DIR)
-            dtype = resolve_dtype(precision)
-            trust_remote_code = "qwen" in name.lower()
-
-            if shared_model is not None and shared_tokenizer is not None:
-                self.model = shared_model
-                self.tokenizer = shared_tokenizer
-            else:
-                self.tokenizer = AutoTokenizer.from_pretrained(
-                    name, cache_dir=CACHE_DIR, trust_remote_code=trust_remote_code
-                )
-                if model_type == "seq2seq":
-                    self.model = AutoModelForSeq2SeqLM.from_pretrained(
-                        name,
-                        cache_dir=CACHE_DIR,
-                        torch_dtype=dtype,
-                        trust_remote_code=trust_remote_code,
-                        low_cpu_mem_usage=True,
-                    )
-                    self.tokenizer.padding_side = "right"
-                else:
-                    self.model = AutoModelForCausalLM.from_pretrained(
-                        name,
-                        cache_dir=CACHE_DIR,
-                        torch_dtype=dtype,
-                        trust_remote_code=trust_remote_code,
-                        low_cpu_mem_usage=True,
-                    )
-                    self.tokenizer.padding_side = "left"
-
-            if self.tokenizer.pad_token is None:
-                self.tokenizer.pad_token = self.tokenizer.eos_token or self.tokenizer.unk_token
-            if self.tokenizer.pad_token_id is None:
-                self.tokenizer.pad_token_id = (
-                    self.tokenizer.eos_token_id or self.tokenizer.unk_token_id
-                )
-
-            self.model.to(self.device)
-            self.model.eval()
-
-            self.hidden_size = self._resolve_hidden_size()
-            self.classifier_head = nn.Linear(self.hidden_size, 2)
-            self.classifier_head.to(self.device)
-            
-            # Successful path
-            self.use_dummy = False
-        except Exception:
-            # If anything goes wrong (no torch, HF unavailable, etc.), fall back to
-            # a CPU-friendly dummy classifier that simply returns the input text.
-            self.use_dummy = True
-            self.model = None
-            self.tokenizer = None
-            self.hidden_size = 128
-            self.classifier_head = None
+        self.use_dummy = True
+        self.model = None
+        self.tokenizer = None
+        self.device = None
+        self.hidden_size = 128
+        self.classifier_head = None
 
     def _resolve_hidden_size(self) -> int:
         # If using dummy fallback, return a fixed size
