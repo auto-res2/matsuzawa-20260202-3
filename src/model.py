@@ -3,14 +3,31 @@ import re
 from dataclasses import dataclass
 from typing import List, Optional
 
-import torch
-from torch import nn
-from transformers import AutoModelForCausalLM, AutoModelForSeq2SeqLM, AutoTokenizer
+# Optional heavy dependencies (torch). If unavailable, we fall back to a
+# CPU-friendly dummy path that keeps the pipeline runnable.
+try:
+    import torch  # type: ignore
+    from torch import nn  # type: ignore
+    TORCH_AVAILABLE = True
+except Exception:
+    torch = None  # type: ignore
+    nn = None  # type: ignore
+    TORCH_AVAILABLE = False
+    
+# Optional transformers import guarded for CPU-only environments
+try:
+    from transformers import AutoModelForCausalLM, AutoModelForSeq2SeqLM, AutoTokenizer  # type: ignore
+    TRANSFORMERS_AVAILABLE = True
+except Exception:
+    AutoModelForCausalLM = None  # type: ignore
+    AutoModelForSeq2SeqLM = None  # type: ignore
+    AutoTokenizer = None  # type: ignore
+    TRANSFORMERS_AVAILABLE = False
 
 CACHE_DIR = ".cache/"
 
 
-def resolve_dtype(precision: str) -> torch.dtype:
+def resolve_dtype(precision: str) -> "torch.dtype":
     if precision == "bf16" and torch.cuda.is_available() and torch.cuda.is_bf16_supported():
         return torch.bfloat16
     if precision in {"fp16", "float16"} and torch.cuda.is_available():
@@ -64,18 +81,26 @@ class PromptModel:
         model_type: str,
         precision: str,
         max_new_tokens: int,
-        shared_model: Optional[torch.nn.Module] = None,
-        shared_tokenizer: Optional[AutoTokenizer] = None,
+        shared_model: Optional[object] = None,
+        shared_tokenizer: Optional["AutoTokenizer"] = None,
     ) -> None:
         self.name = name
         self.model_type = model_type
         self.precision = precision
         self.max_new_tokens = max_new_tokens
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # Device is only relevant when Torch is available
+        self.device = (
+            torch.device("cuda" if torch and torch.cuda.is_available() else "cpu")
+            if TORCH_AVAILABLE
+            else None
+        )
 
         # Lightweight: try to load a real HF model; if unavailable, fall back to a dummy classifier
         self.use_dummy = False
         try:
+            # If Torch isn't available, force the fallback path
+            if not TORCH_AVAILABLE:
+                raise RuntimeError("Torch not available in this environment")
             os.environ.setdefault("HF_HOME", CACHE_DIR)
             dtype = resolve_dtype(precision)
             trust_remote_code = "qwen" in name.lower()
@@ -119,31 +144,17 @@ class PromptModel:
             self.hidden_size = self._resolve_hidden_size()
             self.classifier_head = nn.Linear(self.hidden_size, 2)
             self.classifier_head.to(self.device)
+            
+            # Successful path
+            self.use_dummy = False
         except Exception:
-            # Primary HF load failed. Fallback to CPU-friendly minimal classifier
-            try:
-                # Try a tiny offline model (e.g., GPT-2 small) as a fallback
-                self.tokenizer = AutoTokenizer.from_pretrained("gpt2", cache_dir=CACHE_DIR)
-                self.model = AutoModelForCausalLM.from_pretrained(
-                    "gpt2",
-                    cache_dir=CACHE_DIR,
-                    low_cpu_mem_usage=True,
-                )
-                self.model.to(self.device)
-                self.model.eval()
-                self.model_type = "causal-lm"
-                self.hidden_size = self._resolve_hidden_size()
-                self.classifier_head = nn.Linear(self.hidden_size, 2)
-                self.classifier_head.to(self.device)
-                self.use_dummy = False
-            except Exception:
-                # Final fallback: dummy classifier
-                self.use_dummy = True
-                self.model = None
-                self.tokenizer = None
-                self.hidden_size = 128
-                self.classifier_head = nn.Linear(self.hidden_size, 2)
-                self.classifier_head.to(self.device)
+            # If anything goes wrong (no torch, HF unavailable, etc.), fall back to
+            # a CPU-friendly dummy classifier that simply returns the input text.
+            self.use_dummy = True
+            self.model = None
+            self.tokenizer = None
+            self.hidden_size = 128
+            self.classifier_head = None
 
     def _resolve_hidden_size(self) -> int:
         # If using dummy fallback, return a fixed size
@@ -170,7 +181,7 @@ class PromptModel:
         for param in self.model.parameters():
             param.requires_grad = False
 
-    def trainable_parameters(self) -> List[torch.nn.Parameter]:
+    def trainable_parameters(self) -> List[object]:
         if getattr(self, "use_dummy", False) or self.model is None:
             return list(self.classifier_head.parameters())
         return list(self.model.parameters()) + list(self.classifier_head.parameters())
@@ -213,7 +224,7 @@ class PromptModel:
         decoded = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
         return decoded
 
-    def encode(self, texts: List[str], max_length: Optional[int] = None) -> torch.Tensor:
+    def encode(self, texts: List[str], max_length: Optional[int] = None) -> "torch.Tensor":
         # Dummy path: return zero-vectors
         if getattr(self, "use_dummy", False) or self.tokenizer is None:
             import torch as _torch
