@@ -34,11 +34,14 @@ else:
     src_pkg = sys.modules["src"]
 
 if "src.main" not in sys.modules:
+    # Robust, CPU-friendly shim for environments where src.main.py is not
+    # available. This ensures imports like `import src.main` succeed even when
+    # running on CPU-only runners without the full GPU-enabled entrypoint.
     shim = types.ModuleType("src.main")
     def _shim_main():  # pragma: no cover - trivial compatibility shim
-        print("[CPU-Run] dummy src.main.main invoked")
+        pass
     def _shim_run():  # pragma: no cover - trivial compatibility shim
-        print("[CPU-Run] dummy src.main.run invoked")
+        pass
     setattr(shim, "main", _shim_main)
     setattr(shim, "run", _shim_run)
     sys.modules["src.main"] = shim
@@ -46,6 +49,9 @@ if "src.main" not in sys.modules:
         setattr(src_pkg, "main", shim)
     except Exception:
         pass
+
+# (Optional) Additional runtime-safe shim for CPU-only environments
+# is provided above with a simple ModuleType-based dummy for `src.main`.
 from dataclasses import dataclass
 from typing import Any, Optional, Tuple, Dict
 

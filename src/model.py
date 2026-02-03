@@ -31,6 +31,8 @@ CACHE_DIR = ".cache/"
 # is not available at runtime. This helps CPU-only runs that don't have the
 # GPU-oriented entrypoint wired up.
 if "src.main" not in sys.modules:
+    # Lightweight compatibility shim for CPU-only runs when the real GPU
+    # entrypoint is not present on disk. It allows imports like `import src.main`.
     shim = types.ModuleType("src.main")
     def _shim_main():  # pragma: no cover - trivial compatibility shim
         pass
@@ -41,7 +43,7 @@ if "src.main" not in sys.modules:
     sys.modules["src.main"] = shim
 
 
-def resolve_dtype(precision: str) -> "torch.dtype":
+def resolve_dtype(precision):
     if precision == "bf16" and torch.cuda.is_available() and torch.cuda.is_bf16_supported():
         return torch.bfloat16
     if precision in {"fp16", "float16"} and torch.cuda.is_available():
@@ -49,7 +51,7 @@ def resolve_dtype(precision: str) -> "torch.dtype":
     return torch.float32
 
 
-def normalize_label(text: str) -> int:
+def normalize_label(text):
     text = text.strip().lower()
     if "positive" in text and "negative" not in text:
         return 1
@@ -59,14 +61,14 @@ def normalize_label(text: str) -> int:
     return 1 if first_token == ["positive"] else 0
 
 
-def sanitize_prompt_output(text: str) -> str:
+def sanitize_prompt_output(text):
     text = text.strip()
     text = re.sub(r"^[\"']|[\"']$", "", text)
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     return lines[-1] if lines else text
 
 
-def levenshtein_words(a: str, b: str) -> int:
+def levenshtein_words(a, b):
     a_tokens = a.split()
     b_tokens = b.split()
     dp = list(range(len(b_tokens) + 1))
@@ -91,13 +93,13 @@ class ModelConfig:
 class PromptModel:
     def __init__(
         self,
-        name: str,
-        model_type: str,
-        precision: str,
-        max_new_tokens: int,
-        shared_model: Optional[object] = None,
-        shared_tokenizer: Optional["AutoTokenizer"] = None,
-    ) -> None:
+        name,
+        model_type,
+        precision,
+        max_new_tokens,
+        shared_model=None,
+        shared_tokenizer=None,
+    ):
         # CPU-only safety: if CPU_ONLY env is set, skip heavyweight HF init
         if os.environ.get("CPU_ONLY","0").lower() in ("1","true","yes"):
             self.name = name
@@ -117,7 +119,7 @@ class PromptModel:
         self.max_new_tokens = max_new_tokens
         # Device is only relevant when Torch is available
         self.device = (
-            torch.device("cuda" if torch and torch.cuda.is_available() else "cpu")
+            torch.device("cuda" if (torch is not None) and torch.cuda.is_available() else "cpu")
             if TORCH_AVAILABLE
             else None
         )
@@ -294,7 +296,7 @@ class PromptModel:
         pooled = summed / denom
         return pooled
 
-    def classify(self, texts: List[str], max_length: Optional[int] = None) -> torch.Tensor:
+    def classify(self, texts: List[str], max_length: Optional[int] = None) -> "torch.Tensor":
         pooled = self.encode(texts, max_length=max_length)
         logits = self.classifier_head(pooled)
         return logits
