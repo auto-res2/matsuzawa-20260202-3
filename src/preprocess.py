@@ -31,6 +31,13 @@ import sys, types
 # is not present on the filesystem.
 if "src" not in sys.modules:
     src_pkg = types.ModuleType("src")
+    # Ensure the package has a recognizable __path__ so submodules can be
+    # resolved in namespace-package style even when __init__.py is absent.
+    try:
+        import os as _os
+        src_pkg.__path__ = [_os.path.dirname(_os.path.abspath(__file__))]
+    except Exception:
+        pass
     sys.modules["src"] = src_pkg
 else:
     src_pkg = sys.modules["src"]
@@ -48,7 +55,10 @@ if "src.main" not in sys.modules:
     setattr(shim, "run", _shim_run)
     sys.modules["src.main"] = shim
     try:
-        setattr(src_pkg, "main", shim)
+        # If the `src` package was created above, attach the shim for convenient
+        # attribute-style access (helps some importers that first touch `src`).
+        if "src" in globals() or "src" in sys.modules:
+            setattr(src_pkg, "main", shim)
     except Exception:
         pass
 # Note: no further actions required; the shim is already attached to src.main
