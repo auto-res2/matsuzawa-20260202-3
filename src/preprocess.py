@@ -42,26 +42,54 @@ if "src" not in sys.modules:
 else:
     src_pkg = sys.modules["src"]
 
-if "src.main" not in sys.modules:
-    # Robust, CPU-friendly shim for environments where src.main.py is not
-    # available. This ensures imports like `import src.main` succeed even when
-    # running on CPU-only runners without the full GPU-enabled entrypoint.
-    shim = types.ModuleType("src.main")
-    def _shim_main():  # pragma: no cover - trivial compatibility shim
+def _ensure_src_main_shim():
+    # Ensure a lightweight src.main shim exists as early as possible to support
+    # environments that import `src.main` before the GPU-oriented entrypoint.
+    try:
+        if "src.main" not in sys.modules:
+            shim = types.ModuleType("src.main")
+            def _shim_main():  # pragma: no cover
+                pass
+            def _shim_run():  # pragma: no cover
+                pass
+            setattr(shim, "main", _shim_main)
+            setattr(shim, "run", _shim_run)
+            sys.modules["src.main"] = shim
+            # If the `src` package exists on disk, attach the shim to it for nicer imports
+            if "src" not in sys.modules:
+                src_parent = types.ModuleType("src")
+                try:
+                    import os as _os
+                    src_parent.__path__ = [_os.path.dirname(_os.path.abspath(__file__))]
+                except Exception:
+                    pass
+                sys.modules["src"] = src_parent
+            if "src" in sys.modules:
+                try:
+                    setattr(sys.modules["src"], "main", shim)
+                except Exception:
+                    pass
+    except Exception:
         pass
-    def _shim_run():  # pragma: no cover - trivial compatibility shim
+
+# Run the shim enforcer early to maximize compatibility
+_ensure_src_main_shim()
+
+if "src.main" not in sys.modules:
+    # Fallback: as a last resort, create a lazy no-op shim for `src.main`.
+    shim = types.ModuleType("src.main")
+    def _shim_main():  # pragma: no cover
+        pass
+    def _shim_run():  # pragma: no cover
         pass
     setattr(shim, "main", _shim_main)
     setattr(shim, "run", _shim_run)
     sys.modules["src.main"] = shim
     try:
-        # If the `src` package was created above, attach the shim for convenient
-        # attribute-style access (helps some importers that first touch `src`).
-        if "src" in globals() or "src" in sys.modules:
+        if "src" in sys.modules:
             setattr(src_pkg, "main", shim)
     except Exception:
         pass
-# Note: no further actions required; the shim is already attached to src.main
 
 # (Optional) Additional runtime-safe shim for CPU-only environments
 # is provided above with a simple ModuleType-based dummy for `src.main`.
