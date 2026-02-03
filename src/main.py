@@ -53,7 +53,7 @@ def main(cfg) -> None:
         sys.executable,
         "-m",
         "src.train",
-        f"run={run_id}",
+        f"runs@run={run_id}",
         f"results_dir={results_dir}",
         f"mode={cfg.mode}",
     ]
