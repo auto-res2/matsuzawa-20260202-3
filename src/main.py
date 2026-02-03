@@ -10,31 +10,34 @@ def apply_mode_overrides(cfg) -> None:
         cfg.wandb.mode = "disabled"
         if hasattr(cfg, "run") and hasattr(cfg.run, "optuna"):
             cfg.run.optuna.n_trials = 0
-        cfg.run.training.epochs = 1
-        cfg.run.training.max_eval_batches = 2
-        cfg.run.training.batch_size = min(int(cfg.run.training.batch_size), 8)
-        if "num_iterations" in cfg.run.method_params:
-            cfg.run.method_params.num_iterations = min(
-                1, int(cfg.run.method_params.num_iterations)
-            )
-        if "max_stream_steps" in cfg.run.method_params:
-            cfg.run.method_params.max_stream_steps = min(
-                1, int(cfg.run.method_params.max_stream_steps)
-            )
-        if "stream_batch" in cfg.run.method_params:
-            cfg.run.method_params.stream_batch = min(
-                40, int(cfg.run.method_params.stream_batch)
-            )
-        splits = cfg.run.dataset.splits
-        for key, limit in [
-            ("pool_train", 200),
-            ("dev", 64),
-            ("dev_in", 64),
-            ("dev_ood", 64),
-            ("eval", 128),
-        ]:
-            if key in splits and splits[key] is not None:
-                splits[key] = int(min(int(splits[key]), limit))
+        if hasattr(cfg, "run") and hasattr(cfg.run, "training"):
+            cfg.run.training.epochs = 1
+            cfg.run.training.max_eval_batches = 2
+            cfg.run.training.batch_size = min(int(cfg.run.training.batch_size), 8)
+        if hasattr(cfg, "run") and hasattr(cfg.run, "method_params"):
+            if "num_iterations" in cfg.run.method_params:
+                cfg.run.method_params.num_iterations = min(
+                    1, int(cfg.run.method_params.num_iterations)
+                )
+            if "max_stream_steps" in cfg.run.method_params:
+                cfg.run.method_params.max_stream_steps = min(
+                    1, int(cfg.run.method_params.max_stream_steps)
+                )
+            if "stream_batch" in cfg.run.method_params:
+                cfg.run.method_params.stream_batch = min(
+                    40, int(cfg.run.method_params.stream_batch)
+                )
+        if hasattr(cfg, "run") and hasattr(cfg.run, "dataset"):
+            splits = cfg.run.dataset.splits
+            for key, limit in [
+                ("pool_train", 200),
+                ("dev", 64),
+                ("dev_in", 64),
+                ("dev_ood", 64),
+                ("eval", 128),
+            ]:
+                if key in splits and splits[key] is not None:
+                    splits[key] = int(min(int(splits[key]), limit))
     elif cfg.mode == "full":
         cfg.wandb.mode = "online"
     else:
@@ -45,7 +48,12 @@ def apply_mode_overrides(cfg) -> None:
 def main(cfg) -> None:
     apply_mode_overrides(cfg)
 
-    run_id = cfg.run.run_id
+    # Handle case where cfg.run is a string (run_id) instead of config object
+    if isinstance(cfg.run, str):
+        run_id = cfg.run
+    else:
+        run_id = cfg.run.run_id
+
     results_dir = cfg.results_dir
     os.makedirs(results_dir, exist_ok=True)
 
