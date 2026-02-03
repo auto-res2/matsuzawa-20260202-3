@@ -25,6 +25,28 @@ CPU_ONLY = os.environ.get("CPU_ONLY", "1").lower() in ("1", "true", "yes")
 # This is a non-invasive, runtime-only shim and does not alter any user code.
 # ---------------------------------------------------------------------------
 import sys, types
+# Early ensure a minimal src.main shim exists to satisfy imports in CPU-only runs.
+# This reduces reliance on the filesystem layout and helps environments that
+# import `src.main` before the GPU-oriented entrypoint is loaded.
+if "src" not in sys.modules:
+    _src_pkg = types.ModuleType("src")
+    try:
+        import os as _os
+        _src_pkg.__path__ = [_os.path.dirname(_os.path.abspath(__file__))]
+    except Exception:
+        pass
+    sys.modules["src"] = _src_pkg
+else:
+    _src_pkg = sys.modules["src"]
+if "src.main" not in sys.modules:
+    _shim = types.ModuleType("src.main")
+    def _shim_main():  # pragma: no cover
+        pass
+    def _shim_run():  # pragma: no cover
+        pass
+    setattr(_shim, "main", _shim_main)
+    setattr(_shim, "run", _shim_run)
+    sys.modules["src.main"] = _shim
 # Robust compatibility shim for CPU-only runs: ensure a minimal `src` package
 # and a `src.main` module exist in sys.modules so imports like
 # `import src.main` always succeed even if the real GPU-focused entrypoint
