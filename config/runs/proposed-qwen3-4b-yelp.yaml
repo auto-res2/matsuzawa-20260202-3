@@ -1,0 +1,81 @@
+run_id: proposed-qwen3-4b-yelp
+method: SAFE-Refine (Sequentially-Anytime-Valid & shift-Fair prompt rEfinement)
+model:
+  name: Qwen/Qwen3-4B
+  size: 4B
+  type: causal-lm
+  precision: bf16
+  max_new_tokens: 6
+  editor_name: Qwen/Qwen3-4B
+dataset:
+  name: yelp_polarity
+  role: ood
+  paired_in_domain_dataset: glue/sst2
+  text_field: text
+  label_field: label
+  max_length: 256
+  splits:
+    pool_train: 2000
+    dev: 240
+    eval: 1000
+    shuffle_seed: 0
+training:
+  learning_rate: 0.0
+  batch_size: 16
+  epochs: 0
+  optimizer: none
+  gradient_accumulation_steps: 1
+  max_eval_batches: null
+  seed: 0
+method_params:
+  num_iterations: 6
+  proposals_per_iter: 1
+  acceptance: sequential_mcnemar_sprt
+  alpha_total: 0.10
+  eta: 0.10
+  beta: 0.20
+  stream_batch: 120
+  max_stream_steps: 6
+  worst_corpus_tolerance: 0.0
+  max_prompt_chars: 420
+  max_edit_distance_words: 60
+  require_fresh_samples: true
+optuna:
+  n_trials: 20
+  search_spaces:
+    - param_name: alpha_total
+      distribution_type: loguniform
+      low: 0.01
+      high: 0.2
+    - param_name: eta
+      distribution_type: uniform
+      low: 0.02
+      high: 0.2
+    - param_name: beta
+      distribution_type: uniform
+      low: 0.05
+      high: 0.3
+    - param_name: stream_batch
+      distribution_type: int
+      low: 40
+      high: 200
+    - param_name: max_stream_steps
+      distribution_type: int
+      low: 2
+      high: 10
+    - param_name: worst_corpus_tolerance
+      distribution_type: uniform
+      low: 0.0
+      high: 0.01
+    - param_name: max_prompt_chars
+      distribution_type: int
+      low: 200
+      high: 600
+    - param_name: max_edit_distance_words
+      distribution_type: int
+      low: 20
+      high: 80
+runner:
+  label: [self-hosted, gpu-runner]
+  gpu: A100_or_H200
+  vram_gb: 80

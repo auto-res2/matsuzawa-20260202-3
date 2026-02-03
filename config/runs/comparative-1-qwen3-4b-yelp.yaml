@@ -1,0 +1,41 @@
+run_id: comparative-1-qwen3-4b-yelp
+method: RoPPO-like paired bootstrap gating (reused dual dev set)
+model:
+  name: Qwen/Qwen3-4B
+  size: 4B
+  type: causal-lm
+  precision: bf16
+  max_new_tokens: 6
+  editor_name: Qwen/Qwen3-4B
+dataset:
+  name: yelp_polarity
+  role: ood
+  paired_in_domain_dataset: glue/sst2
+  text_field: text
+  label_field: label
+  max_length: 256
+  splits:
+    dev_in: 240
+    dev_ood: 240
+    eval: 1000
+    shuffle_seed: 0
+training:
+  learning_rate: 0.0
+  batch_size: 16
+  epochs: 0
+  optimizer: none
+  gradient_accumulation_steps: 1
+  max_eval_batches: null
+  seed: 0
+method_params:
+  num_iterations: 6
+  proposals_per_iter: 1
+  acceptance: mean_dev_accuracy_non_decrease
+  reuse_dev_sets: true
+  stability:
+    max_prompt_chars: 420
+    max_edit_distance_words: 60
+runner:
+  label: [self-hosted, gpu-runner]
+  gpu: A100_or_H200
+  vram_gb: 80

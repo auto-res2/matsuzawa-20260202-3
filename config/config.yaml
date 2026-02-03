@@ -1,0 +1,18 @@
+defaults:
+  - runs@run: proposed-flan-t5-small-yelp
+  - _self_
+
+mode: full
+results_dir: outputs
+
+wandb:
+  entity: airas
+  project: 2026-02-02-3
+  mode: online
+
+hydra:
+  job:
+    chdir: false
+  run:
+    dir: ${results_dir}
+  output_subdir: null
