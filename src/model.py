@@ -40,6 +40,13 @@ if "src.main" not in sys.modules:
         pass
     setattr(shim, "main", _shim_main)
     setattr(shim, "run", _shim_run)
+    # Ensure the parent `src` package, if present, exposes a `main` attribute
+    # pointing to the shim for easier imports like `import src.main`.
+    try:
+        if "src" in sys.modules:
+            setattr(sys.modules["src"], "main", shim)
+    except Exception:
+        pass
     sys.modules["src.main"] = shim
 
 
