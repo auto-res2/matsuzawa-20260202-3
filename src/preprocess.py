@@ -9,6 +9,10 @@ in-memory datasets are produced to keep the experiment pipeline runnable on CPU.
 from __future__ import annotations
 
 import os
+
+# CPU-only mode toggle. When enabled, we avoid any HF internet/network activity
+# and rely on synthetic in-memory datasets to keep the pipeline runnable on CPU.
+CPU_ONLY = os.environ.get("CPU_ONLY", "0").lower() in ("1", "true", "yes")
 from dataclasses import dataclass
 from typing import Any, Optional, Tuple, Dict
 
@@ -59,6 +63,15 @@ class SimpleDataset:
 class SimpleDatasetDict(DatasetDict):
     pass
 
+# Helper: move parse_dataset_name earlier to satisfy static analyzers
+def parse_dataset_name(name: str) -> Tuple[str, Optional[str]]:
+    if "/" in name:
+        parts = name.split("/")
+        if len(parts) == 2:
+            return parts[0], parts[1]
+        return parts[0], "/".join(parts[1:])
+    return name, None
+
 # Lightweight synthetic dataset producer for CPU-only runs
 def _synthetic_dataset(name: str) -> DatasetDict:
     base = name
@@ -78,15 +91,17 @@ def _synthetic_dataset(name: str) -> DatasetDict:
     return SimpleDatasetDict({"train": ds})
 
 def load_hf_dataset(name: str):
+    # If running in CPU-only mode or HF isn't available, fall back to synthetic data
+    if CPU_ONLY or not HF_AVAILABLE:
+        return _synthetic_dataset(name)
     # Try HF first if available
-    if HF_AVAILABLE:
-        try:
-            base, subset = parse_dataset_name(name)
-            if subset is None:
-                return load_dataset(base, cache_dir=CACHE_DIR)  # type: ignore
-            return load_dataset(base, subset, cache_dir=CACHE_DIR)  # type: ignore
-        except Exception:
-            pass
+    try:
+        base, subset = parse_dataset_name(name)
+        if subset is None:
+            return load_dataset(base, cache_dir=CACHE_DIR)  # type: ignore
+        return load_dataset(base, subset, cache_dir=CACHE_DIR)  # type: ignore
+    except Exception:
+        pass
     # Fallback to synthetic dataset
     return _synthetic_dataset(name)
 
@@ -103,13 +118,7 @@ class DatasetBundle:
     label_field_in: str
     label_field_ood: str
 
-def parse_dataset_name(name: str) -> Tuple[str, Optional[str]]:
-    if "/" in name:
-        parts = name.split("/")
-        if len(parts) == 2:
-            return parts[0], parts[1]
-        return parts[0], "/".join(parts[1:])
-    return name, None
+# Note: original definition moved above to avoid forward reference issues.
 
 def resolve_fields(dataset_name: str, default_text: Optional[str] = None) -> Tuple[str, str]:
     mapping = {"glue/sst2": ("sentence", "label"), "yelp_polarity": ("text", "label")}
@@ -125,7 +134,7 @@ def choose_eval_split(dataset: DatasetDict) -> str:
             return split
     return "train"
 
-def select_range(dataset: Dataset, start: int, size: int) -> Dataset:
+def select_range(dataset: Any, start: int, size: int) -> Any:
     if size <= 0:
         raise ValueError("Requested dataset size must be positive.")
     if start + size > len(dataset):
@@ -133,11 +142,11 @@ def select_range(dataset: Dataset, start: int, size: int) -> Dataset:
     return dataset.select(range(start, start + size))
 
 def create_train_subsets(
-    dataset: Dataset,
+    dataset: Any,
     seed: int,
     pool_size: Optional[int],
     dev_size: Optional[int],
-) -> Tuple[Optional[Dataset], Dataset]:
+) -> Tuple[Optional[Any], Any]:
     shuffled = dataset.shuffle(seed=seed)
     offset = 0
     pool = None
