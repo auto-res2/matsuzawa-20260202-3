@@ -13,35 +13,7 @@ def apply_mode_overrides(cfg) -> None:
         if hasattr(cfg, "run") and hasattr(cfg.run, "training"):
             cfg.run.training.epochs = 1
             cfg.run.training.max_eval_batches = 2
-            cfg.run.training.batch_size = min(int(cfg.run.training.batch_size), 8)
-        if hasattr(cfg, "run") and hasattr(cfg.run, "method_params"):
-            if "num_iterations" in cfg.run.method_params:
-                cfg.run.method_params.num_iterations = min(
-                    1, int(cfg.run.method_params.num_iterations)
-                )
-            if "max_stream_steps" in cfg.run.method_params:
-                cfg.run.method_params.max_stream_steps = min(
-                    1, int(cfg.run.method_params.max_stream_steps)
-                )
-            if "stream_batch" in cfg.run.method_params:
-                cfg.run.method_params.stream_batch = min(
-                    40, int(cfg.run.method_params.stream_batch)
-                )
-        if hasattr(cfg, "run") and hasattr(cfg.run, "dataset"):
-            splits = cfg.run.dataset.splits
-            for key, limit in [
-                ("pool_train", 200),
-                ("dev", 64),
-                ("dev_in", 64),
-                ("dev_ood", 64),
-                ("eval", 128),
-            ]:
-                if key in splits and splits[key] is not None:
-                    splits[key] = int(min(int(splits[key]), limit))
-    elif cfg.mode == "full":
-        cfg.wandb.mode = "online"
-    else:
-        raise ValueError(f"Unknown mode: {cfg.mode}")
+            cfg.run.training.batch_size = min(int(cfg.run.training.batch_siz
 
 
 @hydra.main(config_path="../config", config_name="config", version_base=None)
@@ -53,14 +25,6 @@ def main(cfg) -> None:
         run_id = cfg.run
     else:
         run_id = cfg.run.run_id
-
-    results_dir = cfg.results_dir
-    os.makedirs(results_dir, exist_ok=True)
-
-    cmd = [
-        sys.executable,
-        "-m",
-        "src.train",
         f"runs@run={run_id}",
         f"results_dir={results_dir}",
         f"mode={cfg.mode}",
@@ -71,5 +35,5 @@ def main(cfg) -> None:
     subprocess.run(cmd, check=True, env=env)
 
 
-if __name__ == "__main__":
+if __name__ == "__main
     main()
