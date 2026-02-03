@@ -84,6 +84,19 @@ class PromptModel:
         shared_model: Optional[object] = None,
         shared_tokenizer: Optional["AutoTokenizer"] = None,
     ) -> None:
+        # CPU-only safety: if CPU_ONLY env is set, skip heavyweight HF init
+        if os.environ.get("CPU_ONLY","0").lower() in ("1","true","yes"):
+            self.name = name
+            self.model_type = model_type
+            self.precision = precision
+            self.max_new_tokens = max_new_tokens
+            self.use_dummy = True
+            self.model = None
+            self.tokenizer = None
+            self.device = None
+            self.hidden_size = 128
+            self.classifier_head = None
+            return
         self.name = name
         self.model_type = model_type
         self.precision = precision
