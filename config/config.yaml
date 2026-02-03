@@ -13,6 +13,4 @@ wandb:
 hydra:
   job:
     chdir: false
-  run:
-    dir: ${results_dir}
   output_subdir: null
