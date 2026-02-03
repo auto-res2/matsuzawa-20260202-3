@@ -12,7 +12,9 @@ import os
 
 # CPU-only mode toggle. When enabled, we avoid any HF internet/network activity
 # and rely on synthetic in-memory datasets to keep the pipeline runnable on CPU.
-CPU_ONLY = os.environ.get("CPU_ONLY", "0").lower() in ("1", "true", "yes")
+# CPU-only mode: default to enabled on CPU-only runners unless explicitly disabled.
+# This ensures we never attempt to load heavy HF resources in CPU-only environments.
+CPU_ONLY = os.environ.get("CPU_ONLY", "1").lower() in ("1", "true", "yes")
 # ---------------------------------------------------------------------------
 # Compatibility shim for environments that expect a module named
 # `src.main` to exist (e.g. the GPU-enabled experiment runner). In CPU-only
@@ -49,6 +51,7 @@ if "src.main" not in sys.modules:
         setattr(src_pkg, "main", shim)
     except Exception:
         pass
+# Note: no further actions required; the shim is already attached to src.main
 
 # (Optional) Additional runtime-safe shim for CPU-only environments
 # is provided above with a simple ModuleType-based dummy for `src.main`.
