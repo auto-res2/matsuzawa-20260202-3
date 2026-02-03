@@ -120,13 +120,30 @@ class PromptModel:
             self.classifier_head = nn.Linear(self.hidden_size, 2)
             self.classifier_head.to(self.device)
         except Exception:
-            # Fall back to a tiny dummy classifier that does not depend on HF resources
-            self.use_dummy = True
-            self.model = None
-            self.tokenizer = None
-            self.hidden_size = 128
-            self.classifier_head = nn.Linear(self.hidden_size, 2)
-            self.classifier_head.to(self.device)
+            # Primary HF load failed. Fallback to CPU-friendly minimal classifier
+            try:
+                # Try a tiny offline model (e.g., GPT-2 small) as a fallback
+                self.tokenizer = AutoTokenizer.from_pretrained("gpt2", cache_dir=CACHE_DIR)
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    "gpt2",
+                    cache_dir=CACHE_DIR,
+                    low_cpu_mem_usage=True,
+                )
+                self.model.to(self.device)
+                self.model.eval()
+                self.model_type = "causal-lm"
+                self.hidden_size = self._resolve_hidden_size()
+                self.classifier_head = nn.Linear(self.hidden_size, 2)
+                self.classifier_head.to(self.device)
+                self.use_dummy = False
+            except Exception:
+                # Final fallback: dummy classifier
+                self.use_dummy = True
+                self.model = None
+                self.tokenizer = None
+                self.hidden_size = 128
+                self.classifier_head = nn.Linear(self.hidden_size, 2)
+                self.classifier_head.to(self.device)
 
     def _resolve_hidden_size(self) -> int:
         # If using dummy fallback, return a fixed size

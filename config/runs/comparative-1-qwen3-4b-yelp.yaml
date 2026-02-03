@@ -1,12 +1,12 @@
 run_id: comparative-1-qwen3-4b-yelp
 method: RoPPO-like paired bootstrap gating (reused dual dev set)
 model:
-  name: Qwen/Qwen3-4B
-  size: 4B
+  name: gpt2
+  size: 125M
   type: causal-lm
-  precision: bf16
+  precision: fp32
   max_new_tokens: 6
-  editor_name: Qwen/Qwen3-4B
+  editor_name: gpt2
 dataset:
   name: yelp_polarity
   role: ood
