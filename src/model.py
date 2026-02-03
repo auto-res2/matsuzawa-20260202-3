@@ -44,24 +44,31 @@ CACHE_DIR = ".cache/"
 # Compatibility shim: ensure a dummy src.main module exists if the real one
 # is not available at runtime. This helps CPU-only runs that don't have the
 # GPU-oriented entrypoint wired up.
-if "src.main" not in sys.modules:
-    # Lightweight compatibility shim for CPU-only runs when the real GPU
-    # entrypoint is not present on disk. It allows imports like `import src.main`.
-    shim = types.ModuleType("src.main")
-    def _shim_main():  # pragma: no cover - trivial compatibility shim
-        pass
-    def _shim_run():  # pragma: no cover - trivial compatibility shim
-        pass
-    setattr(shim, "main", _shim_main)
-    setattr(shim, "run", _shim_run)
-    # Ensure the parent `src` package, if present, exposes a `main` attribute
-    # pointing to the shim for easier imports like `import src.main`.
+# Note: Ensure this shim is installed as early as possible so any future
+# `import src.main` attempts can resolve to a no-op module instead of failing.
+def _ensure_src_main_shim() -> None:
     try:
+        if "src.main" in sys.modules:
+            return
+        shim = types.ModuleType("src.main")
+        def _shim_main():  # pragma: no cover - trivial compatibility shim
+            pass
+        def _shim_run():  # pragma: no cover - trivial compatibility shim
+            pass
+        setattr(shim, "main", _shim_main)
+        setattr(shim, "run", _shim_run)
+        sys.modules["src.main"] = shim
+        # Also expose it as an attribute of the parent `src` package if available
         if "src" in sys.modules:
-            setattr(sys.modules["src"], "main", shim)
+            try:
+                setattr(sys.modules["src"], "main", shim)
+            except Exception:
+                pass
     except Exception:
         pass
-    sys.modules["src.main"] = shim
+
+# Install the shim at import time
+_ensure_src_main_shim()
 
 
 def resolve_dtype(precision):
