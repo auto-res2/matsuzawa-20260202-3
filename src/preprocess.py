@@ -23,7 +23,17 @@ CPU_ONLY = os.environ.get("CPU_ONLY", "0").lower() in ("1", "true", "yes")
 # This is a non-invasive, runtime-only shim and does not alter any user code.
 # ---------------------------------------------------------------------------
 import sys, types
-if not hasattr(sys, "modules") or "src.main" not in sys.modules:
+# Robust compatibility shim for CPU-only runs: ensure a minimal `src` package
+# and a `src.main` module exist in sys.modules so imports like
+# `import src.main` always succeed even if the real GPU-focused entrypoint
+# is not present on the filesystem.
+if "src" not in sys.modules:
+    src_pkg = types.ModuleType("src")
+    sys.modules["src"] = src_pkg
+else:
+    src_pkg = sys.modules["src"]
+
+if "src.main" not in sys.modules:
     shim = types.ModuleType("src.main")
     def _shim_main():  # pragma: no cover - trivial compatibility shim
         print("[CPU-Run] dummy src.main.main invoked")
@@ -32,6 +42,10 @@ if not hasattr(sys, "modules") or "src.main" not in sys.modules:
     setattr(shim, "main", _shim_main)
     setattr(shim, "run", _shim_run)
     sys.modules["src.main"] = shim
+    try:
+        setattr(src_pkg, "main", shim)
+    except Exception:
+        pass
 from dataclasses import dataclass
 from typing import Any, Optional, Tuple, Dict
 

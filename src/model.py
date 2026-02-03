@@ -30,7 +30,7 @@ CACHE_DIR = ".cache/"
 # Compatibility shim: ensure a dummy src.main module exists if the real one
 # is not available at runtime. This helps CPU-only runs that don't have the
 # GPU-oriented entrypoint wired up.
-if not hasattr(sys, "modules") or "src.main" not in sys.modules:
+if "src.main" not in sys.modules:
     shim = types.ModuleType("src.main")
     def _shim_main():  # pragma: no cover - trivial compatibility shim
         pass
