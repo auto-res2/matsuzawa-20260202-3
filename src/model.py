@@ -1,6 +1,20 @@
 import os
 import re
 import sys, types
+
+# Ensure a tiny, always-present src.main shim exists even in CPU-only runs.
+# This preempts ImportError: No module named src.main when some entry points
+# try to import `src.main` before the real GPU-oriented entrypoint is loaded.
+if "src" not in sys.modules:
+    src_pkg = types.ModuleType("src")
+    try:
+        import os as _os
+        src_pkg.__path__ = [_os.path.dirname(_os.path.abspath(__file__))]
+    except Exception:
+        pass
+    sys.modules["src"] = src_pkg
+else:
+    src_pkg = sys.modules["src"]
 from dataclasses import dataclass
 from typing import List, Optional
 
