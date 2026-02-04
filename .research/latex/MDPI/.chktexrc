@@ -1,0 +1,15 @@
+# Disable overly strict warnings for algorithmic/algorithm packages
+# Warning 1: Command terminated with space (common in \State commands)
+CmdLine { -n1 }
+
+# Warning 24: Delete space before \label (often false positive)
+CmdLine { -n24 }
+
+# Warning 9: Mismatched delimiters in math mode (false positive for intervals)
+CmdLine { -n9 }
+
+# Warning 17: Overall parenthesis/bracket count (false positive with comments)
+CmdLine { -n17 }
+
+# Warning 38: Punctuation before quotes (style preference)
+CmdLine { -n38 }

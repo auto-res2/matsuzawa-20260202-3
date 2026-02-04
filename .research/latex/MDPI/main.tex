@@ -1,4 +1,4 @@
-%  LaTeX support: latex@mdpi.com 
+%  LaTeX support: latex@mdpi.com
 %  For support, please attach all files needed for compiling as well as the log file, and specify your operating system, LaTeX version, and LaTeX editor.
 
 %=================================================================
@@ -6,9 +6,9 @@
 
 %=================================================================
 % MDPI internal commands - do not modify
-\firstpage{1} 
-\makeatletter 
-\setcounter{page}{\@firstpage} 
+\firstpage{1}
+\makeatletter
+\setcounter{page}{\@firstpage}
 \makeatother
 \pubvolume{1}
 \issuenum{1}
@@ -16,10 +16,10 @@
 \pubyear{2026}
 \copyrightyear{2026}
 %\externaleditor{Firstname Lastname} % More than 1 editor, please add `` and '' before the last editor name
-\datereceived{ } 
+\datereceived{ }
 \daterevised{ } % Comment out if no revised date
-\dateaccepted{ } 
-\datepublished{ } 
+\dateaccepted{ }
+\datepublished{ }
 %\datecorrected{} % For corrected papers: "Corrected: XXX" date in the original paper.
 %\dateretracted{} % For retracted papers: "Retracted: XXX" date in the original paper.
 %\doinum{} % Used for some special journals, like molbank
@@ -38,10 +38,10 @@
 
 %=================================================================
 % Full title of the paper (Capitalized)
-\Title{CFS-eSAFE: Cross-Fitted Fixed-Sequence E-Value Gatekeeping for Safer Iterative Prompt Optimization}
+\Title{CFS-eSAFE\@: Cross-Fitted Fixed-Sequence E-Value Gatekeeping for Safer Iterative Prompt Optimization}
 
 % Author Orchid ID: enter ID or remove command
-\newcommand{\orcidauthorA}{0000-0000-0000-000X} % Add \orcidA{} behind the author's name
+\newcommand{\orcidauthorA}{0000{-}0000{-}0000{-}000X} % Add \orcidA{} behind the author's name
 %\newcommand{\orcidauthorB}{0000-0000-0000-000X} % Add \orcidB{} behind the author's name
 
 % Authors, for the paper (add full first names)
@@ -58,7 +58,7 @@ $^{1}$ \quad Affiliation 1; e-mail@e-mail.com\\
 $^{2}$ \quad Affiliation 2; e-mail@e-mail.com}
 
 % Contact information of the corresponding author
-\corres{Correspondence: e-mail@e-mail.com; Tel.: (optional; include country code; if there are multiple corresponding authors, add author initials) +xx-xxxx-xxx-xxxx (F.L.)}
+\corres{Correspondence: e-mail@e-mail.com; Tel.:\ (optional; include country code; if there are multiple corresponding authors, add author initials) +xx-xxxx-xxx-xxxx (F.L.)}
 
 % Current address and/or shared authorship
 %\firstnote{Current address: Affiliation.}
@@ -128,7 +128,7 @@ $^{2}$ \quad Affiliation 2; e-mail@e-mail.com}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Introduction}
 
-Prompt-based test-time optimization seeks to improve a model's behavior without changing its parameters, enabling rapid iteration and avoiding training instabilities. A representative approach is SELF-REFINE, which alternates between generating feedback and revising an output using the same model, demonstrating gains on diverse tasks including sentiment reversal \cite{madaan-2023-self}. While such methods are attractive for practical iteration, many deployments require more than improved average performance: they require a non-regression contract that rules out harmful degradations on inputs that are operationally important, safety-critical, or likely to be scrutinized.
+Prompt-based test-time optimization seeks to improve a model's behavior without changing its parameters, enabling rapid iteration and avoiding training instabilities. A representative approach is SELF-REFINE, which alternates between generating feedback and revising an output using the same model, demonstrating gains on diverse tasks including sentiment reversal~\cite{madaan-2023-self}. While such methods are attractive for practical iteration, many deployments require more than improved average performance: they require a non-regression contract that rules out harmful degradations on inputs that are operationally important, safety-critical, or likely to be scrutinized.
 
 This paper studies a safety gap that becomes acute when iterative prompt optimization is deployed in realistic engineering workflows. Two adaptivity sources interact in a way that breaks common evaluation and gating patterns.
 
@@ -163,15 +163,15 @@ Future work is primarily empirical and engineering-oriented. The constrained suc
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Related Work}
 
-Our work is most directly connected to training-free, test-time iterative refinement and prompt-editing methods that use the model itself to critique and improve outputs. SELF-REFINE alternates between generating natural-language feedback and producing a refined output, reporting improvements across diverse tasks without additional training, reinforcement learning, or external reward models \cite{madaan-2023-self}. CFS-eSAFE shares the training-free motivation and operates in a similar ``propose then refine'' loop, but targets a different research problem: statistically valid deployment gating under adaptivity.
+Our work is most directly connected to training-free, test-time iterative refinement and prompt-editing methods that use the model itself to critique and improve outputs. SELF-REFINE alternates between generating natural-language feedback and producing a refined output, reporting improvements across diverse tasks without additional training, reinforcement learning, or external reward models~\cite{madaan-2023-self}. CFS-eSAFE shares the training-free motivation and operates in a similar ``propose then refine'' loop, but targets a different research problem: statistically valid deployment gating under adaptivity.
 
-A key contrast is that SELF-REFINE is primarily an optimization procedure. It aims to produce better outputs (often by iterating several times per input) and may use task-specific selection heuristics to choose among iterations \cite{madaan-2023-self}. CFS-eSAFE is instead a safety and evaluation layer over an optimizer: it decides whether a prompt update should be accepted for future use based on evidence about non-regression. In deployment, this distinction matters because a prompt update can improve average behavior while degrading concentrated pockets of inputs that are rare overall but important for robustness auditing.
+A key contrast is that SELF-REFINE is primarily an optimization procedure. It aims to produce better outputs (often by iterating several times per input) and may use task-specific selection heuristics to choose among iterations~\cite{madaan-2023-self}. CFS-eSAFE is instead a safety and evaluation layer over an optimizer: it decides whether a prompt update should be accepted for future use based on evidence about non-regression. In deployment, this distinction matters because a prompt update can improve average behavior while degrading concentrated pockets of inputs that are rare overall but important for robustness auditing.
 
-Our work also contrasts with slice testing practices that certify only (i) an overall audit average, (ii) a small predeclared list of slices, or (iii) at most a single mined ``worst slice.'' These practices can be operationally convenient, but they do not address the realistic case where multiple distinct regressions can co-exist. CFS-eSAFE explicitly aims to certify a list of slices that are adaptively discovered from observed behavior. Because the slice list is chosen based on data, the method must prevent ``double dipping'' where the same audit examples are used both to select slices and to certify them. CFS-eSAFE's cross-fitted discovery/confirmation split is designed to address this selection leakage.
+Our work also contrasts with slice testing practices that certify only (i) an overall audit average, (ii) a small predeclared list of slices, or (iii) at most a single mined ``worst slice''. These practices can be operationally convenient, but they do not address the realistic case where multiple distinct regressions can co-exist. CFS-eSAFE explicitly aims to certify a list of slices that are adaptively discovered from observed behavior. Because the slice list is chosen based on data, the method must prevent ``double dipping'' where the same audit examples are used both to select slices and to certify them. CFS-eSAFE's cross-fitted discovery/confirmation split is designed to address this selection leakage.
 
 Finally, our work contrasts with conservative multiplicity control when many slices are audited. A natural safe-prompt-optimization baseline is to use valid sequential evidence (such as e-values) but apply Bonferroni-style corrections across slices, and possibly across candidate attempts. This can become overly conservative under small audits because the per-slice thresholds become very hard to pass as the number of tested slices grows. Our baseline AV-DR-SPO instantiates this approach: it uses mixture e-values but corrects slice multiplicity via Bonferroni-style thresholds over a fixed slice set. CFS-eSAFE differs by using a fixed-sequence (gatekeeping) design over an ordered list: later slice tests are only performed after earlier tests pass. In effect, it avoids allocating error budget to slices that would never be reached due to earlier failures.
 
-In summary, relative to SELF-REFINE and related training-free refinement approaches \cite{madaan-2023-self}, the novelty of CFS-eSAFE is not in proposing candidates but in certifying them under adaptive candidate generation and adaptive slice discovery: cross-fitted slice mining, statistically valid mixture e-values, fixed-sequence gatekeeping over multiple slices, and interpretable rejection certificates intended to support debugging and auditing.
+In summary, relative to SELF-REFINE and related training-free refinement approaches~\cite{madaan-2023-self}, the novelty of CFS-eSAFE is not in proposing candidates but in certifying them under adaptive candidate generation and adaptive slice discovery: cross-fitted slice mining, statistically valid mixture e-values, fixed-sequence gatekeeping over multiple slices, and interpretable rejection certificates intended to support debugging and auditing.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Background}
@@ -232,7 +232,7 @@ This split is fixed once per seed. For each candidate prompt $P_c$, slices and t
 \subsection{Gate statistics: paired differences and mixture e-values}
 For each example $x$, we compute $z(P,x)$ and $z(P_c,x)$ and then form $d=z(P_c,x)-z(P,x)$. All gates operate on collections of these differences, either overall or restricted to a slice key $s(x)$.
 
-For a list of differences $\{d_i\}_{i=1}^{n}$ and a margin $m$, we compute a mixture e-value. Fix a grid $\Lambda=\{0.05,0.1,0.2,0.4,0.7\}$. For each $\lambda\in\Lambda$, compute
+For a list of differences ${\{d_i\}}_{i=1}^{n}$ and a margin $m$, we compute a mixture e-value. Fix a grid $\Lambda=\{0.05,0.1,0.2,0.4,0.7\}$. For each $\lambda\in\Lambda$, compute
 \[
 E_{\lambda}=\prod_{i=1}^{n} \max\{\epsilon,\,1+\lambda\,(d_i-m)\},
 \]
@@ -253,7 +253,7 @@ A gate at level $\ell$ passes if $E\ge 1/\ell$.
 \end{enumerate}
 The acceptance rule is conjunctive: accept $P_c$ only if every gate in the sequence passes. The fixed-sequence design is motivated by power preservation when $J$ is large: unlike Bonferroni, the method does not divide $\ell$ by $J$.
 
-\textbf{Alpha-wealth across repeated candidate tests.} Across an adaptive search over many candidates, CFS-eSAFE maintains alpha-wealth $W$ initialized at $\alpha$. For each candidate test, it spends $\mathrm{spend}=\min(\alpha_{\max\,\mathrm{spend}}, W/4)$, sets $\ell=\mathrm{spend}$ for the gates, and uses the threshold $1/\ell$. If the candidate is rejected, wealth decreases by $\mathrm{spend}$. If the candidate is accepted, wealth is replenished by $\rho\,\mathrm{spend}$ (with a cap in the implementation), where $\rho\in(0,1]$ is a reward fraction.
+\textbf{Alpha-wealth across repeated candidate tests.} Across an adaptive search over many candidates, CFS-eSAFE maintains alpha-wealth $W$ initialized at $\alpha$. For each candidate test, it spends $\mathrm{spend}=\min(\alpha_{\max\,\mathrm{spend}}, W/4)$, sets $\ell=\mathrm{spend}$ for the gates, and uses the threshold $1/\ell$. If the candidate is rejected, wealth decreases by $\mathrm{spend}$. If the candidate is accepted, wealth is replenished by $\rho\,\mathrm{spend}$ (with a cap in the implementation), where $\rho\in{(0,1]}$ is a reward fraction.
 
 \textbf{Regression certificates.} For each rejected candidate prompt, CFS-eSAFE records the first gate that failed, chosen from $\{\text{opt},\text{audit\_all},\text{slice:}\langle\text{slice\_key}\rangle\}$. This interface is intended to produce actionable explanations for rejections.
 
@@ -584,7 +584,7 @@ Once these prerequisites are met, the core hypothesis becomes testable with the 
 \vspace{6pt}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\authorcontributions{For research articles with several authors, a short paragraph specifying their individual contributions must be provided. The following statements should be used ``Conceptualization, X.X. and Y.Y.; methodology, X.X.; software, X.X.; validation, X.X., Y.Y. and Z.Z.; formal analysis, X.X.; investigation, X.X.; resources, X.X.; data curation, X.X.; writing---original draft preparation, X.X.; writing---review and editing, X.X.; visualization, X.X.; supervision, X.X.; project administration, X.X.; funding acquisition, Y.Y. All authors have read and agreed to the published version of the manuscript.'', please turn to the  \href{http://img.mdpi.org/data/contributor-role-instruction.pdf}{CRediT taxonomy} for the term explanation. Authorship must be limited to those who have contributed substantially to the work~reported.}
+\authorcontributions{For research articles with several authors, a short paragraph specifying their individual contributions must be provided. The following statements should be used ``Conceptualization, X.X. and Y.Y.; methodology, X.X.; software, X.X.; validation, X.X., Y.Y. and Z.Z.; formal analysis, X.X.; investigation, X.X.; resources, X.X.; data curation, X.X.; writing---original draft preparation, X.X.; writing---review and editing, X.X.; visualization, X.X.; supervision, X.X.; project administration, X.X.; funding acquisition, Y.Y. All authors have read and agreed to the published version of the manuscript.'' Please turn to the  \href{http://img.mdpi.org/data/contributor-role-instruction.pdf}{CRediT taxonomy} for the term explanation. Authorship must be limited to those who have contributed substantially to the work~reported.}
 
 \funding{This research received no external funding.}
 
@@ -595,7 +595,7 @@ Once these prerequisites are met, the core hypothesis becomes testable with the 
 \conflictsofinterest{The authors declare no conflicts of interest.}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%\isPreprints{}{% This command is only used for ``preprints''.
+%\isPreprints{}{ % This command is only used for ``preprints''.
 \begin{adjustwidth}{-\extralength}{0cm}
 %} % If the paper is ``preprints'', please uncomment this parenthesis.
 %\printendnotes[custom] % Un-comment to print a list of endnotes
@@ -604,7 +604,7 @@ Once these prerequisites are met, the core hypothesis becomes testable with the 
 \bibliography{references}
 
 \PublishersNote{}
-%\isPreprints{}{% This command is only used for ``preprints''.
+%\isPreprints{}{ % This command is only used for ``preprints''.
 \end{adjustwidth}
 %} % If the paper is ``preprints'', please uncomment this parenthesis.
 \end{document}
